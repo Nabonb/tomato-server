@@ -45,7 +45,7 @@ async function run() {
 run().catch(console.dir)
 
 app.get('/', (req, res) => {
-  res.send('Tomato Server is eating..')
+  res.send('Tomato Server is eating.......')
 })
 
 app.listen(port, () => {
