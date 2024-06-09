@@ -29,7 +29,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     const usersCollection = client.db('tomatoDB').collection('users')
-    // const roomsCollection = client.db('aircncDb').collection('rooms')
+    const foodCollection = client.db('tomatoDB').collection('foods')
     // const bookingsCollection = client.db('aircncDb').collection('bookings')
 
     //Save user email and role into the mongodb userCollection 
@@ -45,6 +45,26 @@ async function run() {
       res.send(result)
     })
 
+    //Get user with email
+    app.get('/users/:email',async(req,res)=>{
+      const email = req.params.email
+      const query = {email:email}
+      const result = await usersCollection.findOne(query)
+      res.send(result)
+    })
+
+    // Add food with post method
+    app.post('/foods',async(req,res)=>{
+      const foodData = req.body
+      const result = await foodCollection.insertOne(foodData)
+      res.send(result) 
+    })
+
+    //Get all food
+    app.get('/foods',async(req,res)=>{
+      const allFood = await foodCollection.find().toArray()
+      res.send(allFood)
+    })
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
