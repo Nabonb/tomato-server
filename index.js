@@ -30,7 +30,8 @@ async function run() {
   try {
     const usersCollection = client.db('tomatoDB').collection('users')
     const foodCollection = client.db('tomatoDB').collection('foods')
-    // const bookingsCollection = client.db('aircncDb').collection('bookings')
+    const orderCollection = client.db('tomatoDB').collection('orders')
+    const orderedFoodCollection = client.db('tomatoDB').collection('orderFoods')
 
     //Save user email and role into the mongodb userCollection 
     app.put('/users/:email',async(req,res)=>{
@@ -65,6 +66,61 @@ async function run() {
       const allFood = await foodCollection.find().toArray()
       res.send(allFood)
     })
+
+    //delete one food
+    app.delete('/foods/:id',async(req,res)=>{
+      const id = req.params.id
+      const query= {_id: new ObjectId(id)}
+      const result = await foodCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    //order food user details
+    app.post('/orders',async(req,res)=>{
+      const formData = req.body
+      const result = await orderCollection.insertOne(formData)
+      res.send(result)
+    })
+
+    // 
+    // Save or update cart items
+    app.post('/food-ordered', async (req, res) => {
+      try {
+        const { cartItems, email, userName } = req.body; // Assuming req.body contains cartItems array, email, and name
+    
+        for (const cartItem of cartItems) {
+          const existingCartItem = await foodCollection.findOne({ _id: new ObjectId(cartItem._id) });
+    
+          if (existingCartItem) {
+            // Update quantity if item exists
+            await foodCollection.updateOne(
+              { _id: new ObjectId(cartItem._id) },
+              { $inc: { quantity: cartItem.quantity } } // Increment quantity
+            );
+          } else {
+            // Insert new item if it doesn't exist
+            const newCartItem = {
+              _id: new ObjectId(cartItem._id),
+              category: cartItem.category,
+              description: cartItem.description,
+              image: cartItem.image,
+              name: cartItem.name,
+              price: cartItem.price,
+              quantity: cartItem.quantity,
+              email: email, // Include email
+              userName: userName, // Include user name
+            };
+            var result = await orderedFoodCollection.insertOne(newCartItem);
+          }
+        }
+    
+        res.send(result)
+      } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+      }
+    });
+
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 })
