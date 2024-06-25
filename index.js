@@ -3,6 +3,7 @@ const app = express()
 const cors = require('cors')
 const morgan = require('morgan')
 require('dotenv').config()
+const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000
 
 // middleware
@@ -31,7 +32,7 @@ async function run() {
     const usersCollection = client.db('tomatoDB').collection('users')
     const foodCollection = client.db('tomatoDB').collection('foods')
     const orderCollection = client.db('tomatoDB').collection('orders')
-    const orderedFoodCollection = client.db('tomatoDB').collection('orderFoods')
+    // const orderedFoodCollection = client.db('tomatoDB').collection('orderFoods')
 
     //Save user email and role into the mongodb userCollection 
     app.put('/users/:email',async(req,res)=>{
@@ -82,42 +83,33 @@ async function run() {
       res.send(result)
     })
 
-    // 
-    // Save or update cart items
-    app.post('/food-ordered', async (req, res) => {
+    //stripe payment integration
+    app.post('/create-checkout-session', async (req, res) => {
+      const products = req.body.product;
+    
+      const lineItems = products.map((product) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: product.name,
+            images: [product.image],
+          },
+          unit_amount: Math.round(product.price * 100),
+        },
+        quantity: product.quantity,
+      }));
+    
       try {
-        const { cartItems, email, userName } = req.body; // Assuming req.body contains cartItems array, email, and name
-    
-        for (const cartItem of cartItems) {
-          const existingCartItem = await foodCollection.findOne({ _id: new ObjectId(cartItem._id) });
-    
-          if (existingCartItem) {
-            // Update quantity if item exists
-            await foodCollection.updateOne(
-              { _id: new ObjectId(cartItem._id) },
-              { $inc: { quantity: cartItem.quantity } } // Increment quantity
-            );
-          } else {
-            // Insert new item if it doesn't exist
-            const newCartItem = {
-              _id: new ObjectId(cartItem._id),
-              category: cartItem.category,
-              description: cartItem.description,
-              image: cartItem.image,
-              name: cartItem.name,
-              price: cartItem.price,
-              quantity: cartItem.quantity,
-              email: email, // Include email
-              userName: userName, // Include user name
-            };
-            var result = await orderedFoodCollection.insertOne(newCartItem);
-          }
-        }
-    
-        res.send(result)
-      } catch (err) {
-        console.error(err.message);
-        res.status(500).send('Server Error');
+        const session = await stripe.checkout.sessions.create({
+          payment_method_types: ['card'],
+          line_items: lineItems,
+          mode: 'payment',
+          success_url: 'http://localhost:5173/success',
+          cancel_url: 'http://localhost:5173/cancel',
+        });
+        res.json({ id: session.id });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
       }
     });
 
