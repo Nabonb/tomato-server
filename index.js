@@ -83,6 +83,17 @@ async function run() {
       res.send(result)
     })
 
+    //get food which are ordered
+    app.get('/orders/:email',async(req,res)=>{
+      const email = req.params.email
+      console.log(email)
+      const query = {userEmail:email}
+      console.log(query)
+      const result = await orderCollection.find(query).toArray()
+      console.log(result)
+      res.send(result)
+    })
+
     //stripe payment integration
     app.post('/create-checkout-session', async (req, res) => {
       const products = req.body.product;
