@@ -83,7 +83,7 @@ async function run() {
       res.send(result)
     })
 
-    //get food which are ordered
+    //get food which are ordered for user
     app.get('/orders/:email',async(req,res)=>{
       const email = req.params.email
       console.log(email)
@@ -91,6 +91,25 @@ async function run() {
       console.log(query)
       const result = await orderCollection.find(query).toArray()
       console.log(result)
+      res.send(result)
+    })
+
+    //Get all the foods for the admin
+    app.get('/orders',async(req,res)=>{
+       const result = await orderCollection.find().toArray()
+       res.send(result)
+    })
+
+    //Update orders in database 
+    app.put('/orders/:id', async (req, res) => {
+      const status = req.body
+      console.log(status)
+      const filter = { _id: new ObjectId(req.params.id) }
+      const options = { upsert: true }
+      const updateDoc = {
+        $set: status,
+      }
+      const result = await orderCollection.updateOne(filter, updateDoc, options)
       res.send(result)
     })
 
