@@ -183,8 +183,8 @@ async function run() {
           payment_method_types: ['card'],
           line_items: lineItems,
           mode: 'payment',
-          success_url: 'https://tomato-server-xi.vercel.app/success',
-          cancel_url: 'https://tomato-server-xi.vercel.app/cancel',
+          success_url: 'https://tomato-2787c.web.app/success',
+          cancel_url: 'https://tomato-2787c.web.app/cancel',
         });
         res.json({ id: session.id });
       } catch (error) {
