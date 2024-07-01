@@ -2,6 +2,7 @@ const express = require('express')
 const app = express()
 const cors = require('cors')
 const morgan = require('morgan')
+const jwt = require('jsonwebtoken')
 require('dotenv').config()
 const stripe = require('stripe')(process.env.PAYMENT_SECRET_KEY)
 const port = process.env.PORT || 5000
@@ -27,12 +28,53 @@ const client = new MongoClient(uri, {
   },
 })
 
+//verify jwt 
+const verifyJwt =(req,res,next)=>{
+  const authorization = req.headers.authorization
+  if(!authorization){
+    return res.status(401).send({error:true,message:"Unauthorize Access"})
+  }
+  const token = authorization.split(' ')[1]
+  console.log(token)
+  jwt.verify(token,process.env.ACCESS_TOKEN_SECRET,(err,decoded)=>{
+    if(err){
+      return res.status(401).send({error:true,message:"Unauthorize Access"})
+    }
+    req.decoded = decoded
+    next()
+  })
+}
+
+
+
 async function run() {
   try {
     const usersCollection = client.db('tomatoDB').collection('users')
     const foodCollection = client.db('tomatoDB').collection('foods')
     const orderCollection = client.db('tomatoDB').collection('orders')
     // const orderedFoodCollection = client.db('tomatoDB').collection('orderFoods')
+
+
+    //generate jwt token
+    app.post('/jwt',(req,res)=>{
+      const email = req.body
+      console.log(email)
+      const token = jwt.sign(email,process.env.ACCESS_TOKEN_SECRET,{expiresIn:"1h"})
+      res.send({token})
+    })
+
+    
+    // Warning: use verifyJWT before using verifyAdmin
+  const verifyAdmin = async (req, res, next) => {
+    const email = req.decoded.email;
+    const query = { email: email }
+    const user = await usersCollection.findOne(query);
+    if (user?.role !== 'host') {
+      return res.status(403).send({ error: true, message: 'forbidden message' });
+  }
+    next();
+  }
+    
 
     //Save user email and role into the mongodb userCollection 
     app.put('/users/:email',async(req,res)=>{
@@ -84,18 +126,25 @@ async function run() {
     })
 
     //get food which are ordered for user
-    app.get('/orders/:email',async(req,res)=>{
+    app.get('/orders/:email',verifyJwt,async(req,res)=>{
       const email = req.params.email
       console.log(email)
+      if(!email){
+        res.send([]);
+      }
+      const decodedEmail = req.decoded.email
+      if(email !== decodedEmail){
+        return res.status(403).send({error:true,message: 'Forbidden Access' });
+      }
       const query = {userEmail:email}
-      console.log(query)
+      
       const result = await orderCollection.find(query).toArray()
       console.log(result)
       res.send(result)
     })
 
     //Get all the foods for the admin
-    app.get('/orders',async(req,res)=>{
+    app.get('/orders',verifyJwt,verifyAdmin,async(req,res)=>{
        const result = await orderCollection.find().toArray()
        res.send(result)
     })
